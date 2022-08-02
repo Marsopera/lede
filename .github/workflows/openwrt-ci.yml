@@ -10,6 +10,9 @@ name: OpenWrt-CI
 on:
   schedule:
     - cron: 0 20 * * *
+  push:
+    branches: 
+      - master
   release:
     types: [published]
 
@@ -17,7 +20,7 @@ jobs:
 
   build_openwrt:
 
-    name: Build OpenWrt firmware
+    name: 编译固件
 
     runs-on: ubuntu-latest
 
@@ -25,40 +28,264 @@ jobs:
 
     steps:
 
-      - name: Checkout
+      - name: 校验文件
         uses: actions/checkout@v2
         with:
           ref: master
 
-      - name: Space cleanup
+      - name: 清理空间
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          docker rmi `docker images -q`
-          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
-          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
+          # docker rmi `docker images -q`
+          # sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d
+          # sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php* android*
           sudo -E apt-get update
           sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf swig
-          sudo -E apt-get -y autoremove --purge
+          # sudo -E apt-get -y autoremove --purge
           sudo -E apt-get clean
-
+          
           df -h
-
-      - name: Update feeds
+      - name: 涡轮增雕进程
+        run: |
+          cd package
+          mkdir openwrt-packages
+          cd openwrt-packages
+          git clone https://github.com/openwrt-develop/luci-theme-atmaterial.git
+      - name: 更新软件列表
         run: |
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
-      - name: Generate configuration file
-        run: make defconfig
-
+      - name: 创建配置文件
+        run: |
+          rm -f ./.config*
+          touch ./.config
+          #
+          # 在 cat >> .config <<EOF 到 EOF 之间粘贴你的编译配置, 需注意缩进关系
+          # 有些插件/选项是默认开启的, 如果想要关闭, 请参照以下示例进行编写:
+          # 
+          #          =========================================
+          #         |  # 取消编译VMware镜像:                   |
+          #         |  cat >> .config <<EOF                   |
+          #         |  # CONFIG_VMDK_IMAGES is not set        |
+          #         |  EOF                                    |
+          #          =========================================
+          #
+          # 
+          # 以下是一些提前准备好的一些插件选项.
+          # 直接取消注释相应代码块即可应用. 不要取消注释代码块上的汉字说明.
+          # 如果不需要代码块里的某一项配置, 只需要删除相应行.
+          #
+          # 如果需要其他插件, 请按照示例自行添加.
+          # 注意, 只需添加依赖链顶端的包. 如果你需要插件 A, 同时 A 依赖 B, 即只需要添加 A.
+          # 
+          # 无论你想要对固件进行怎样的定制, 都需要且只需要修改 EOF 回环内的内容.
+          # 
+          # 编译Redmi AC2100固件:
+          cat >> .config <<EOF
+          CONFIG_TARGET_ramips=y
+          CONFIG_TARGET_ramips_mt7621=y
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_redmi-router-ac2100 is not set
+          # CONFIG_TARGET_ramips_mt76x8 is not set
+          # CONFIG_TARGET_ramips_rt288x is not set
+          # CONFIG_TARGET_ramips_rt305x is not set
+          # CONFIG_TARGET_ramips_rt3883 is not set
+          # CONFIG_TARGET_MULTI_PROFILE is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_adslr_g7 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_afoundry_ew1200 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_alfa-network_quad-e4g is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ampedwireless_ally-r1900k is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ampedwireless_ally-00x19k is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asiarf_ap7621-001 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asiarf_ap7621-nv1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asus_rt-ac57u is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asus_rt-ac65p is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asus_rt-ac85p is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_asus_rt-n56u-b1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_buffalo_wsr-1166dhp is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_buffalo_wsr-2533dhpl is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_buffalo_wsr-600dhp is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_cudy_wr1300 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_cudy_wr2100 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-1960-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-2640-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-2660-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-853-a3 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-853-r1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-860l-b1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-867-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-878-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-882-a1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_dlink_dir-882-r1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_d-team_newifi-d2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_d-team_pbr-m1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_edimax_ra21s is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_edimax_re23s is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_edimax_rg21s is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1167ghbk2-s is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1167gs2-b is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1167gst2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1750gs is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1750gst2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1750gsv is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-1900gst is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-2533ghbk-i is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-2533gst is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_elecom_wrc-2533gst2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_firefly_firewrt is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_gehua_ghl-r-001 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_glinet_gl-mt1300 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_gnubee_gb-pc1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_gnubee_gb-pc2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_hiwifi_hc5962 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-ax1167gr is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-ax1167gr2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-ax2033gr is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-dx1167r is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-dx1200gr is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wn-gx300gr is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iodata_wnpr2600g is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iptime_a6ns-m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_iptime_a8004t is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_jcg_jhr-ac876m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_jcg_jhr-ac945m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_jcg_q20 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_jcg_y2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_lenovo_newifi-d1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_e5600 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_ea7300-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_ea7300-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_ea7500-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_ea8100-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_ea8100-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_linksys_re6500 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mediatek_ap-mt7621a-v60 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mediatek_mt7621-eval-board is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mikrotik_routerboard-750gr3 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mikrotik_routerboard-760igs is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mikrotik_routerboard-m11g is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mikrotik_routerboard-m33g is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mqmaker_witi is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_mtc_wr1201 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_ex6150 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6220 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6260 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6350 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6700-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6800 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_r6850 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_wac104 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_wac124 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netgear_wndr3700-v5 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_netis_wf2881 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_phicomm_k2p is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_planex_vr500 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_raisecom_msg1500-x-00 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_samknows_whitebox-v8 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_sercomm_na502 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_storylink_sap-g3200u3 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_telco-electronics_x1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tenbay_t-mb5eu-v01 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_thunder_timecloud is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_totolink_a7000r is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_totolink_x5000r is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_archer-a6-v3 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_archer-c6-v3 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_archer-c6u-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_eap235-wall-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_re350-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_re500-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_tplink_re650-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ubnt_edgerouter-x is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ubnt_edgerouter-x-sfp is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ubnt_unifi-6-lite is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_ubnt_unifi-nanohd is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_unielec_u7621-01-16m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_unielec_u7621-06-16m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_unielec_u7621-06-64m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_wavlink_wl-wn531a6 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_wevo_11acnas is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_wevo_w2914ns-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_winstars_ws-wn583a6 is not set
+          CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3g=y
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3g-v2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3-pro is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-4 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-4a-gigabit is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-ac2100 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-cr660x is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xiaoyu_xy-c5 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_xzwifi_creativebox-v1 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_youhua_wr1200js is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_youku_yk-l2 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zbtlink_zbt-we1326 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zbtlink_zbt-we3526 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zbtlink_zbt-wg2626 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zbtlink_zbt-wg3526-16m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zbtlink_zbt-wg3526-32m is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zio_freezio is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zyxel_nr7101 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zyxel_wap6805 is not set
+          # CONFIG_TARGET_ramips_mt7621_DEVICE_zte_e8820s is not set
+          EOF
+          # IPv6支持:
+          cat >> .config <<EOF
+          CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
+          CONFIG_PACKAGE_ipv6helper=y
+          EOF
+          # 常用LuCI插件选择:
+          cat >> .config <<EOF
+          CONFIG_PACKAGE_luci-app-qos=y
+          CONFIG_PACKAGE_luci-app-adbyby-plus=y
+          # CONFIG_PACKAGE_luci-app-aria2=y
+          # CONFIG_PACKAGE_luci-app-baidupcs-web=y
+          # CONFIG_PACKAGE_luci-app-docker=y
+          CONFIG_PACKAGE_luci-app-frpc=y
+          CONFIG_PACKAGE_luci-app-minidlna=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Kcptun=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Server=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Socks=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_V2ray=y
+          CONFIG_PACKAGE_luci-app-ttyd=y
+          CONFIG_PACKAGE_luci-app-v2ray-server=y
+          CONFIG_PACKAGE_luci-app-filetransfer=y
+          
+          CONFIG_PACKAGE_luci-app-firewall=y
+          CONFIG_PACKAGE_luci-app-nlbwmon=y
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-syncdial=y
+          CONFIG_PACKAGE_luci-app-mwan3=y
+          CONFIG_PACKAGE_luci-app-statistics=y
+          CONFIG_PACKAGE_luci-app-unblockmusic=y        
+          EOF
+          # LuCI主题:
+          cat >> .config <<EOF
+          # CONFIG_PACKAGE_luci-theme-argon=y
+          CONFIG_PACKAGE_luci-theme-atmaterial=y
+          EOF
+          # 常用软件包:
+          cat >> .config <<EOF
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_htop=y
+          # CONFIG_PACKAGE_nano=y
+          # CONFIG_PACKAGE_screen=y
+          CONFIG_PACKAGE_tree=y
+          CONFIG_PACKAGE_vim-fuller=y
+          CONFIG_PACKAGE_wget=y
+          EOF
+          
+          # 
+          # ========================固件定制部分结束========================
+          # 
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
       - name: Make download
         run: |
           make download -j8
           find dl -size -1024c -exec rm -f {} \;
-
-      - name: Compile firmware
+      - name: 编译固件
         run: |
           make -j$(nproc) || make -j1 V=s
           echo "======================="
@@ -69,7 +296,6 @@ jobs:
           du -h --max-depth=1 ./ --exclude=build_dir --exclude=bin
           du -h --max-depth=1 ./build_dir
           du -h --max-depth=1 ./bin
-
       - name: Prepare artifact
         run: |
           mkdir -p ./artifact/firmware
@@ -79,7 +305,6 @@ jobs:
           cp -rf $(find ./bin/targets/ -type f) ./artifact/firmware/
           cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
           cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
-
       - name: Deliver buildinfo
         uses: actions/upload-artifact@v2
         with:
